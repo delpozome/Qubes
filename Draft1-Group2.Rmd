@@ -1,0 +1,242 @@
+---
+title: "Income inquality and historic redlining shaping urban biodiversity: A lesson on how luxury and legacy effects shape avifauna in Los Angeles, California - INSTRUCTOR VERSION"
+author: "Lesson by: Melanie Del Pozo and Herman Tomasi"
+date: "Created on 2024-04-05"
+output: html_document
+---
+
+**QUESTIONS FROM THE READING**
+
+First take the time to read the lesson PDF and the focal paper, by doing so will prepare you to answer these questions and work your way through the R analyses.
+
+
+LESSON BACKGROUND INFORMATION QUESTIONS:
+
+1.  What is luxury and legacy effect, and how it connects to HOLC?
+
+**The luxury-effect hypothesis posits that there is a positive relationship between affluence and biodiversity in cities (Leonget al. 2018)—with a focus on green amenities (e.g., treecover, Schwarz et al. 2015) and wildlife diversity and abundance(Wood and Esaian 2020).**
+
+**The legacy-effect hypothesis suggests that environmental changes result from historical human activities (Schell et al. 2020). Legacy effects are common explanatory pathways for patterns found in natural communities (Foster et al. 2003) and have gained attention in urban ecosystems when focused on relationships between development patterns and biodiversity**
+
+**In 1933, the U.S Federal Home Loan Bank Board initiated a program named the Home Owners’ Loan Corporation (HOLC), which was intended to assist homeowners who were in default on their mortgages to avoid foreclosure as well as to identify prime areas for real estate investments**
+
+2.  Envision land value as the main indicator of wealth in neighborhoods. How you expect the avian community (abundance of forest birds vs synanthropic birds) to differ between neighborhoods with different land value? 
+
+**We expect abundance of forest birds to increase as land value increases, and the opposite to be true with synanthropic bird abundance.**
+
+3.  How does avian community differ between neighborhoods that had different HOLC grades?
+
+**We expect forest birds to be more abundant in neighborhoods with AB grade, and less in neighborhood with CD HOLC grading**
+
+METHODS FILL IN THE BLANK 
+
+a. In this observational study, they used established sampling design of bird and habitat survey locations in __33__ residential communities throughout L.A  
+
+b. __24__ of the 33 clusters were in each of the 4 categories of the HOLC security maps: A (n = _3_), B (n = _9_), C (n = _8_), and D (n = _4_). They were combined in AB zone (n= _12_), CD zone (n= _12_) and non graded zone (n= _12_)
+
+c. Bird surveys were conducted with standardized 5 min __100__-m radius point counts at the _132_ sample points for _2_ field seasons (2 visits per season) from __October__ to __March__ 2016-2018. 
+
+d. Unlike __synanthropic__ birds, which have adapted well to living alongside humans and require minimal green spaces to thrive, __forest__ birds rely more heavily on abundant green spaces for their habitat. 
+
+**Now Lets Begin the R portion of the lesson!**
+
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+#Packages required for this lesson (Note: Packages only need to be installed once) 
+#to install, simply remove the "#" and run the code to install (be sure to remove the line of code or add the # back so that it doesn't install every time you run the code)
+
+#install.packages("tidyverse")
+library(tidyverse)
+#install.packages("stats")
+library(stats)
+#install.packages("readr")
+library(readr)
+
+```
+
+First we will import and look at the data
+
+```{r, uploading the data}
+#Upload the data using read.csv. Make sure your markdown file and your data are in the same folder
+data <- read.csv("Wood1.csv")
+
+#Take a look at your data by using head() 
+#head(data)
+```
+
+**PART A: LETS EXPLORE HOW THE LUXURY EFFECT MAY ALSO INFLUENCE THE AVIFAUNA IN LA**
+For this lesson we will be performing a simpler analysis than the ones used in the focal paper. This means we do not need all the original variables so we can subset and rename our data to make it easier to work with. Because we are only interested in the relationship between land value and bird abundance, as well as the interaction with HOLC grade, we can use the following list of variables only: 
+
+Response Variables
+Synanthrope_abundance_sum 
+Forest_abundance_sum
+
+Predictor variables
+Land_value
+HOLC_Code_groups
+
+
+```{r, editing the data}
+##now we will use a pipe operator ( %>% ) to subset the data we will want to use in our analyses. R pipes are a way to run multiple operations together in a concise way, which can then be made into a new dataframe without affecting the original dataframe.
+
+data %>% 
+  dplyr::select(Number,Synanthrope_abundance_sum, Forest_abundance_sum, Land_value, HOLC_Code_groups) %>% ##this selects only the columns of data of interest 
+  rename(s.abundance= Synanthrope_abundance_sum, ##This is how you rename column names
+         f.abundance= Forest_abundance_sum, 
+         land.value= Land_value, 
+         grade= HOLC_Code_groups) -> data
+
+#We can immediately start looking at our data to get insight on its behavior compared to our expectations. 
+plot(data$land.value, data$s.abundance)
+plot(data$land.value, data$f.abundance)
+#These variables are used in Figure 4A and 4B which we will recreate later in the lesson. We can see here that forest birds abundance appears to increase as the land value increases. The oppositive seems to be true for Synanthrope abundance. 
+```
+**TEST FOR NORMALITY IN THE DATA**
+
+Before selecting appropriate models for our data analysis, it's essential to assess the normality of our response variables. If the data follows a normal distribution, a simple linear regression model can be employed straightforwardly. However, if the data deviates from normality, alternative methods must be considered to accommodate this violation of the assumption.
+
+
+```{r}
+#Check for normality of response variable using a Shapiro-Wilk Normality Test - if the p-value is greater than 0.05 we can conclude that the data are normally distributed.
+
+# The shapiro.test() is part of the stats package which was installed above
+shapiro.test(data$f.abundance)
+shapiro.test(data$s.abundance)
+
+
+#Another way to check for normality is by looking at the histogram plot. A normal distribution will be shaped like a bell curve
+hist(data$f.abundance)
+hist(data$s.abundance)
+
+
+```
+
+Is our data normally distributed according to the shapiro.test? **Yes, it is normally distributed**
+
+What do you see? Are our histograms shaped like a bell curve? Does it match our results from the Shapiro.test? Why, why not? Think about our sample size. 
+**Our histogram is weird but it could be because of our small sample size.**
+
+Based on our normality tests, can we use a lineal model to study the relationship between land value and different bird abundance? **Yes, we can.**
+
+
+**FITING A LINEAR MODEL**
+
+In order to prove that avifauna in LA is truly being influenced by luxury effect, we can fit a linear model using forest or Synanthropic bird abundance as a response variable as a function of land value. Because our land values are so big (from 114,265.8 to 1,254,754.3 in dollars), we can use the log() of this variable to turn it into more manageable numbers. 
+
+```{r, creating linear models}
+
+## we will used the lm() function where the response variable is a function (~) of the dependent variable
+## Response Variable = y and Predictor Variable = x
+##  Model.Name <- glm(Response Variable ~ Predictor Variable, data = dataframe)
+## First, create a model using forest birds abundance. 
+basiclm1 <- lm(f.abundance ~ log(land.value), data=data)
+
+#summary(Model.Name) will provide the LM summary statistical output
+summary(basiclm1)
+
+#now create a linear model using Synanthropic bird abundance and its corresponding summary
+basiclm2 <- lm(s.abundance ~ log(land.value), data=data)
+summary(basiclm2)
+```
+
+Think back at your predictions. Does the output of this linear model agrees or disagrees with your predictions? Please interpret the summary statistical output of both models.
+**Our summary statistics show there is the wealthier a neighborhood, the higher the forest bird abundance..**
+
+
+**VIZUALIZING THE MODELS WE CREATED ABOVE**
+
+```{r}
+## The ggplot2 package (which is part of the tidyverse package we installed above) is used to create data visualizations that can be highly customized (learn more about this package here https://ggplot2.tidyverse.org/)
+
+##Let's first create a graph for our first model, looking at the relationship between land value and forest bird abundance
+ggplot(data, aes(x=log(land.value), y=f.abundance))+
+  geom_point(aes(col=grade))+
+  geom_smooth(method=lm, se = TRUE)+
+  labs(x="Land Value", y="Forest Birds Abundance", title = "Relationship between Land Value and Forest Bird Abundance", colour = "HOLC Grade")
+
+##Now create a graph for out second model, using Synanthropic bird abundance as the response variable
+ggplot(data, aes(x=log(land.value), y=s.abundance))+
+  geom_point(aes(col=grade))+
+  geom_smooth(method=lm, se = TRUE)+
+  labs(x="Land Value", y="Synanthropic Birds Abundance", title = "Relationship between Land Value and Synanthropic Bird Abundance", colour = "HOLC Grade") 
+```
+
+You have just recreated Figures 4a and 4b from the focal paper. Go to the focal paper and compare your figures, are they similar? What do they show about the avifauna in LA? 
+
+**They should be similar and they show luxury effect has a statistically significant effect on avifauna** 
+
+
+**PART B: NOW LETS EXPLORE HOW THE LEGACY EFFECT MAY ALSO INFLUENCE THE AVIFAUNA IN LA**
+
+In this section it is important to understand the difference between additive and interactive models. When we perform additive models, we are assuming the variables are independent from each other. When we use interactive models, we are then assuming there is relationship between our variables. In this case we want to look into legacy effects, represented here by the different grades assigned to each neighborhood by the HOLC. So, is land value independent of HOLC grade, or is there a strong relationship between them? Meaning, are AB wealthier neighborhood seeing higher forest bird abundance than CD wealthy neighborhood? 
+
+Now lets look at the legacy effect. We want to know if there is an interaction between land value and HOLC categories, as it relates to the abundance of Synanthropic birds
+
+
+```{r}
+##First, create an additive model, working with Synanthropic bird abundance this time. Be sure to log(land.value)
+additive.synanthropic <- lm(s.abundance ~ log(land.value)+grade, data=data)
+##Now create an interactive model by changing the + for a * 
+interactive.synanthropic <- lm(s.abundance ~ log(land.value)*grade, data=data)
+
+#Use anova() to compare both models: anova(additive.model, interactive.model)
+anova(additive.synanthropic, interactive.synanthropic) #The best model will be the one with less RSS, and with a Pr(>F) less than 0.5
+
+#Use summary() to look into the output of the stronger model. You will be asked to interpret this outcome.
+summary(interactive.synanthropic)
+
+#Let's first graph this output to help us interpret it better. 
+ggplot(data, aes(x=log(land.value), y=s.abundance, color=grade))+
+  geom_point()+
+  geom_smooth(method=lm, se = TRUE)+
+  labs(x="Land Value", 
+       y="Synanthropic-bird abundance", 
+       colour = "HOLC Categories")
+```
+
+Using the summary(), along with the graph, interpret the output. Rememeber We read this by starting at the bottom(i.e. log(Land.value..):HOLC_Code_groupsNot_redlined)). Do you see a statistically significant interaction? That is, do we think that the slopes are significantly different from each other? what about with CD? Moving up, do they appear to have significantly different intercepts? For help, read our section titled "Interpreting your ANCOVA".  
+**No, we do not see a significant interaction.**
+
+
+Notice your just created figure 6B from the focal paper, now let's do the exact same steps for forest bird abundance and create figure 6A.
+
+```{r}
+##First we will create an additive model, working with forest bird abundance for now. Be sure to log(land.value)
+additive.forest <- lm(f.abundance ~ log(land.value)+grade, data=data)
+##Now create an interactive model by changing the + for a * 
+interactive.forest <- lm(f.abundance ~ log(land.value)*grade, data=data)
+
+#We can use anova() to compare both models and see which one is better: anova(additive.model, interactive.model)
+anova(additive.forest, interactive.forest) #The best model will be the one with less RSS, and with a Pr(>F) less than 0.5
+
+#Use summary() to look into the output of the stronger model. You will be asked to interpret this outcome.
+summary(interactive.forest) 
+
+#Let's graph this output to help us interpret it better. 
+ggplot(data, aes(x=log(land.value), y=f.abundance, color=grade))+
+  geom_point()+
+  geom_smooth(method=lm, se = TRUE)+
+  labs(x="Land Value", y="Forest-bird abundance", colour = "HOLC Categories")
+
+```
+
+Interpret this last output as well. Do you see a statistically significant interaction? That is, do we think that the slopes are significantly different from each other? what about with CD? Moving up, do they appear to have significantly different intercepts? Note that graded houses were built before 1930's.  
+
+**Forest-bird abundance dropped considerably in non-graded zones in relation to parcel land values in comparison with AB and CD zones.**
+
+**FINAL QUESTIONS**
+
+8. Overall, based on the findings of the Focal Paper, what you learned in the PDF lesson and this R analysis, does it appear that patterns of income inequality and redlining carry over to influence avifauna in LA?
+
+**Yes**
+
+9. Are different neighborhoods experiencing different avifauna? How does that inform urban planning, education, ecosystem health or improving bird conservation efforts overall? 
+
+**Higher land values correlating with more forest-dependent birds and fewer synanthropic birds suggests that urban areas with greater economic prosperity tend to support healthier ecosystems.**
+
+NOW THAT YOU HAVE COMPLETED THIS LESSON, USE THE KNIT-TO-HTML OPTION SO THAT YOU CAN EASILY SUBMIT YOUR ASSIGNMENT TO YOUR INSTRUCTOR
+
+
+
