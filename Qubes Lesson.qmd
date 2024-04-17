@@ -1,0 +1,196 @@
+---
+title: "How luxury and legacy effects shape avifaunal abundance  - INSTRUCTOR VERSION" #Perhaps a punchier title would be better
+author: "A lesson by: Melanie Del Pozo and J. Herman Tomasi"
+format: pdf
+---
+
+# THIS LESSON
+
+This lesson will briefly introduce luxury and legacy effects as they relate to avian urban ecology. These effects will then be evaluated statistically using simple linear regression and ANCOVA. A focal paper will serve as the basis for this lesson.
+
+> Eric M Wood, Sevan Esaian, Christian Benitez, Philip J Ethington, Travis Longcore, Lars Y Pomara, Historical racial redlining and contemporary patterns of income inequality negatively affect birds, their habitat, and people in Los Angeles, California, *Ornithological Applications*, 2023; <https://doi.org/10.1093/ornithapp/duad044>
+
+## PREREQUISITES
+
+Going into this lesson, students should have basic familiarity with:
+
+-   Ecology. Students should be able to differentiate between abundance and species richness. Students Should be familiar with etc... \# I need to flesh this out
+
+-   Statistics. Students should be able to run and interpret basic statistical operations such as ANOVA and t-tests. Students should understand what linear regressions are used for and how they work at a basic level.
+
+-   R Programming. Students must be able to run code in R. Students must understand how to load data and libraries. Students should be familiar with basic data wrangling using tidyverse libraries such as dplyr. Students should be familiar with graphing using ggplot and should understand how to graph basic plots using built-in functions.
+
+## LEARNING OBJECTIVES
+
+By the end of this lesson, students will understand:
+
+-   What the luxury and legacy effects are.
+
+-   How these effects relate to avian ecology.
+
+-   What historical redlining is and some of the impacts the practice has had.
+
+-   What statistical interactions are, and how they relate to ANCOVA
+
+-   How to do an ANCOVA in R and interpret the results.
+
+# Background
+
+## Synanthropic vs. Forest Birds
+
+## Luxury Effect
+
+The luxury-effect hypothesis posits that there is a positive relationship between affluence and biodiversity in cities (Leonget al. 2018)—with a focus on green amenities (e.g., treecover, Schwarz et al. 2015) and wildlife diversity and abundance(Wood and Esaian 2020)
+
+## Legacy Effect
+
+The legacy-effect hypothesis suggests that environmental changes result from historical human activities (Schell et al. 2020). Legacy effects are common explanatory pathways for patterns found in natural communities (Foster et al. 2003) and have gained attention in urban ecosystems when focused on relationships between development patterns and biodiversity The legacy-effect hypothesis suggests that environmental changes result from historical human activities (Schell et al. 2020). Legacy effects are common explanatory pathways for patterns found in natural communities (Foster et al. 2003) and have gained attention in urban ecosystems when focused on relationships between development patterns and biodiversity
+
+### Redlining
+
+## Knowledge Check
+
+1.  What is luxury and legacy effect, and how it connects to HOLC?
+
+2.  Wood et al. envision land value as the main indicator of wealth in neighborhoods. How would you expect the avian community (abundance of forest birds vs synanthropic birds) to differ between neighborhoods with different land value?
+
+3.  How do you expect avian communities to differ between neighborhoods that had different HOLC grades?
+
+# Methods
+
+## Sampling
+
+## Interactions
+
+## ANCOVA
+
+### ANCOVA and the Legacy Effect
+
+## Knowledge Check
+
+1.  In this observational study, they used established sampling design of bird and habitat survey locations in **33** residential communities throughout L.A
+
+2.  **24** of the 33 clusters were in each of the 4 categories of the HOLC security maps: A (n = *3*), B (n = *9*), C (n = *8*), and D (n = *4*). They were combined in AB zone (n= *12*), CD zone (n= *12*) and non graded zone (n= *12*)
+
+3.  Bird surveys were conducted with standardized 5 min **100**-m radius point counts at the *132* sample points for *2* field seasons (2 visits per season) from **October** to **March** 2016-2018.
+
+4.  Unlike **synanthropic** birds, which have adapted well to living alongside humans and require minimal green spaces to thrive, **forest** birds rely more heavily on abundant green spaces for their habitat.
+
+# Results
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = F)
+#Packages required for this lesson (Note: Packages only need to be installed once) 
+#to install, simply remove the "#" and run the code to install (be sure to remove the line of code or add the # back so that it doesn't install every time you run the code)
+
+
+library(tidyverse)
+library(stats)
+library(readr)
+
+```
+
+```{r, uploading the data}
+
+data <- read.csv("Wood1.csv")
+
+
+```
+
+## Linear Regression
+
+**PART A: Lets explore how the luxury effect may also influence avifauna in LA**
+
+For this lesson, we will be performing a simpler analysis than the ones used in the focal paper. This means we do not need all the original variables so we can subset and rename our data to make it easier to work with. Because we are only interested in the relationship between land value and bird abundance, as well as the interaction with HOLC grade, we can use the following list of variables only:
+
+**Response Variables:** 
+
+s.abundance = Synanthrope Abundance
+
+f.abundance = Forest Bird Abundance
+
+**Predictor variables:** 
+
+land.value = Average land value for a plot in the area where observations were made.  HOLC_Code_groups: Zones A and B have been grouped into AB and the same is true for C and D zones. Areas that are ungraded are their own group.
+
+We can immediately start looking at our data to get insight on its behavior compared to our expectations.
+
+```{r}
+data %>% 
+  dplyr::select(Number,Synanthrope_abundance_sum, Forest_abundance_sum, Land_value, HOLC_Code_groups) %>% ##this selects only the columns of data of interest 
+  rename(s.abundance= Synanthrope_abundance_sum, ##This is how you rename column names
+         f.abundance= Forest_abundance_sum, 
+         land.value= Land_value, 
+         grade= HOLC_Code_groups) -> data
+```
+
+```{r}
+plot(data$land.value, data$s.abundance)
+```
+
+```{r}
+plot(data$land.value, data$f.abundance)
+```
+
+We can see here that forest birds abundance appears to increase as the land value increases. The opposite seems to be true for Synanthrope abundance. One thing to note is that there appears to be some curvature in the data, so we may have to account for that going forward
+
+### **Test for normality of the data**
+
+Before selecting appropriate models for our data analysis, it's essential to assess the normality of our response variables. If the data follows a normal distribution, a simple linear regression model can be employed straightforwardly. However, if the data deviates from normality, alternative methods must be considered to accommodate this violation of the assumption.
+
+We will check for normality of response variable using a Shapiro-Wilk Normality Test - if the p-value is greater than 0.05 we can conclude that the data are normally distributed.
+
+```{r}
+shapiro.test(data$f.abundance)
+
+```
+
+I am running a few minutes late; my previous meeting is running over.
+
+```{r}
+shapiro.test(data$s.abundance)
+```
+
+Another way to check for normality is by looking at the histogram plot. A normal distribution will be shaped like a bell curve.
+
+```{r}
+hist(data$f.abundance)
+hist(data$s.abundance)
+```
+
+```{r}
+
+```
+
+The histograms don't look amazing but the Shapiro-Wilk test performs well enough that we can move on.
+
+### Fitting a Linear Model
+
+In order to prove that avifauna in LA is truly being influenced by the luxury effect, we can fit a linear model using forest or Synanthropic bird abundance as a response variable as a function of land value. Because our land values are so big (from 114,265.8 to 1,254,754.3 in dollars), we can use the log() of this variable to turn it into more manageable numbers. It also has the added benefit of making our data appear more linear. There are trade-offs, however. Specifically, it may be harder to make intuitive sense of the data. After all, what does a log point increase in land value even represent?
+
+Let's start with forest birds. We know that forest birds require a lot of green space to thrive. We also know that green spaces are often associated with greater affluence. It then follows that we should expect to see a positive relationship between land value and forest bird abundance. With that in mind, let's create a linear model and see if greater affluence really means more forest birds.
+
+```{r}
+basiclm1 <- lm(f.abundance ~ log(land.value), data=data)
+```
+
+Before we look at the results, let's visualize this relationship using a graph.
+
+```{r warning=FALSE, message=FALSE}
+ggplot(data, aes(x=log(land.value), y=f.abundance))+
+  geom_point(aes(col=grade))+
+  geom_smooth(method=lm, se = TRUE)+
+  labs(x="Land Value", y="Forest Birds Abundance", title = "Relationship between Land Value and Forest Bird Abundance", colour = "HOLC Grade")
+
+```
+
+```{r}
+summary(basiclm1)
+```
+
+Think back at your predictions. Does the output of this linear model agrees or disagrees with your predictions? Please interpret the summary statistical output of both models.
+
+## ANCOVA
+
+# Discussion
